@@ -1,7 +1,8 @@
 use crate::config::*;
+use crate::mm::KERNEL_SPACE;
 use crate::stack::{KernelStack, UserStack};
 use crate::sync::UPSafeCell;
-use crate::trap::TrapContext;
+use crate::trap::{TrapContext, trap_handler};
 use core::arch::asm;
 use lazy_static::*;
 
@@ -98,10 +99,14 @@ pub fn run_next_app() -> ! {
     extern "C" {
         fn __restore(cx_addr: usize);
     }
+    let (_, kernel_stack_top) = kernel_stack_position(0);
     unsafe {
         __restore(KERNEL_STACK.push_context(TrapContext::app_init_context(
             APP_BASE_ADDRESS,
             USER_STACK.get_sp(),
+            KERNEL_SPACE.exclusive_access().token(),
+            kernel_stack_top,
+            trap_handler as usize,
         )));
     }
     panic!("Unreachable in batch::run_current_app!");
