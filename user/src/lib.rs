@@ -4,6 +4,7 @@
 
 #[macro_use]
 pub mod console;
+
 mod lang_items;
 mod syscall;
 
@@ -26,8 +27,8 @@ fn clear_bss() {
         fn start_bss();
         fn end_bss();
     }
-    (start_bss as usize..end_bss as usize).for_each(|addr| unsafe {
-        (addr as *mut u8).write_volatile(0);
+    (start_bss as usize..end_bss as usize).for_each(|a| {
+        unsafe { (a as *mut u8).write_volatile(0) }
     });
 }
 

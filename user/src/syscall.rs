@@ -14,7 +14,7 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
             in("x11") args[1],
             in("x12") args[2],
             in("x17") id
-        );
+        )
     }
     ret
 }

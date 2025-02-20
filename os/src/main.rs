@@ -3,42 +3,44 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
+#[macro_use]
 extern crate alloc;
 
-#[macro_use]
-extern crate bitflags;
+mod lang_items;
+mod logging;
+mod sbi;
 
 #[macro_use]
 mod console;
-mod config;
-mod stack;
-mod lang_items;
-mod loader;
-mod mm;
-mod sbi;
+
 mod sync;
+mod trap;
+mod syscall;
+mod config;
+mod loader;
+mod task;
 mod timer;
-pub mod batch;
-pub mod syscall;
-pub mod task;
-pub mod trap;
+mod mm;
+
+#[path = "boards/qemu.rs"]
+mod board;
 
 use core::arch::global_asm;
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
 
+// use log::*;
+
 #[no_mangle]
 pub fn rust_main() -> ! {
     clear_bss();
-    println!("[kernel] Hello, world!");
+    logging::init();
+    // info!("Hello, world!");
     mm::init();
-    println!("[kernel] back to world!");
-    mm::remap_test();
+    // info!("back to world!");
+    // mm::remap_test();
     trap::init();
-    trap::enable_timer_interrupt();
-    // batch::init();
-    // batch::run_next_app();
-    // loader::load_apps();
+    trap::enabled_timer_interrupt();
     timer::set_next_trigger();
     task::run_first_task();
     panic!("Unreachable in rust_main!");
@@ -49,8 +51,7 @@ fn clear_bss() {
         fn sbss();
         fn ebss();
     }
-
     (sbss as usize..ebss as usize).for_each(|a| {
         unsafe { (a as *mut u8).write_volatile(0) }
-    })
+    });
 }

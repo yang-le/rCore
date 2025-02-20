@@ -22,8 +22,7 @@ fn insert_app_data() -> Result<()> {
         .collect();
     apps.sort();
 
-    writeln!(
-        f,
+    writeln!(f,
         r#"
     .align 3
     .section .data
@@ -40,8 +39,7 @@ _num_app:
 
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);
-        writeln!(
-            f,
+        writeln!(f,
             r#"
     .section .data
     .global app_{0}_start

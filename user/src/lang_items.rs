@@ -1,15 +1,16 @@
+use core::panic::PanicInfo;
+
 #[panic_handler]
-fn panic_handler(panic_info: &core::panic::PanicInfo) -> ! {
-    let err = panic_info.message().unwrap();
-    if let Some(location) = panic_info.location() {
+fn panic(info: &PanicInfo) -> ! {
+    if let Some(location) = info.location() {
         println!(
-            "Panicked at {}:{}, {}",
+            "Panicked at {}:{} {}",
             location.file(),
             location.line(),
-            err
+            info.message().unwrap()
         );
     } else {
-        println!("Panicked: {}", err);
+        println!("Panicked: {}", info.message().unwrap());
     }
     loop {}
 }
