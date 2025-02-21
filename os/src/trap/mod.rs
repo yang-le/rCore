@@ -12,7 +12,7 @@ use riscv::register::{
 use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
     syscall::syscall,
-    task::{current_trap_cx, current_user_token, suspend_current_and_run_next},
+    task::{current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next},
     timer::set_next_trigger,
 };
 use log::*;
@@ -65,24 +65,30 @@ pub fn trap_return() -> ! {
 #[no_mangle]
 pub fn trap_handler() -> ! {
     set_kernel_trap_entry();
-    let cx = current_trap_cx();
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
+            let mut cx = current_trap_cx();
             cx.sepc += 4;
-            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            
+            // cx is changed during sys_exec, so we have to call it again
+            cx = current_trap_cx();
+            cx.x[10] = result as usize;
         }
         Trap::Exception(Exception::StoreFault)
         | Trap::Exception(Exception::StorePageFault)
         | Trap::Exception(Exception::LoadFault)
-        | Trap::Exception(Exception::LoadPageFault) => {
-            error!("PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
-            panic!("Cannot continue!");
+        | Trap::Exception(Exception::LoadPageFault)
+        | Trap::Exception(Exception::InstructionFault)
+        | Trap::Exception(Exception::InstructionPageFault) => {
+            error!("{:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.", scause.cause(), stval, current_trap_cx().sepc);
+            exit_current_and_run_next(-2);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            error!("IllegalInstruction in application, kernel killed it.");
-            panic!("Cannot continue!");
+            error!("IllegalInstruction in application, core dumped.");
+            exit_current_and_run_next(-3);
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();

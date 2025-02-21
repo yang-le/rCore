@@ -1,6 +1,9 @@
 use core::arch::asm;
 
-use crate::{config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE}, sync::UPSafeCell};
+use crate::{
+    config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE},
+    sync::UPSafeCell,
+};
 use alloc::{collections::btree_map::BTreeMap, sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use lazy_static::lazy_static;
@@ -9,7 +12,7 @@ use riscv::register::satp;
 use super::{
     address::*,
     frame_allocator::{frame_alloc, FrameTracker},
-    page_table::{PTEFlags, PageTable, PageTableEntry}
+    page_table::{PTEFlags, PageTable, PageTableEntry},
 };
 
 pub struct MapArea {
@@ -91,8 +94,11 @@ impl MemorySet {
         debug!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
         debug!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
         debug!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-        debug!(".bss [{:#x}, {:#x})", sbss_with_stack as usize, ebss as usize);
-        
+        debug!(
+            ".bss [{:#x}, {:#x})",
+            sbss_with_stack as usize, ebss as usize
+        );
+
         trace!("mapping .text section");
         memory_set.push(
             MapArea::new(
@@ -211,6 +217,25 @@ impl MemorySet {
         )
     }
 
+    pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {
+        let mut memory_set = Self::new_bare();
+        memory_set.map_trampoline();
+        for area in user_space.areas.iter() {
+            let new_area = MapArea::from_another(area);
+            memory_set.push(new_area, None);
+
+            // copy data from another space
+            for vpn in area.vpn_range {
+                let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn
+                    .get_bytes_array()
+                    .copy_from_slice(src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
+    }
+
     fn map_trampoline(&mut self) {
         extern "C" {
             fn strampoline();
@@ -233,6 +258,22 @@ impl MemorySet {
 
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
+    }
+
+    pub fn recycle_data_pages(&mut self) {
+        self.areas.clear();
+    }
+
+    pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
+        if let Some((idx, area)) = self
+            .areas
+            .iter_mut()
+            .enumerate()
+            .find(|(_, area)| area.vpn_range.get_start() == start_vpn)
+        {
+            area.unmap(&mut self.page_table);
+            self.areas.remove(idx);
+        }
     }
 }
 
@@ -314,12 +355,20 @@ impl MapArea {
         }
         page_table.unmap(vpn);
     }
+
+    pub fn from_another(another: &MapArea) -> Self {
+        Self {
+            vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()),
+            data_frames: BTreeMap::new(),
+            map_type: another.map_type,
+            map_perm: another.map_perm,
+        }
+    }
 }
 
 lazy_static! {
-    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> = Arc::new(
-        UPSafeCell::new(MemorySet::new_kernel())
-    );
+    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
+        Arc::new(UPSafeCell::new(MemorySet::new_kernel()));
 }
 
 #[allow(unused)]
@@ -338,8 +387,29 @@ pub fn remap_test() {
     let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
     let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
     let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
-    assert_eq!(kernel_space.page_table.translate(mid_text.floor()).unwrap().writable(), false);
-    assert_eq!(kernel_space.page_table.translate(mid_rodata.floor()).unwrap().writable(), false);
-    assert_eq!(kernel_space.page_table.translate(mid_data.floor()).unwrap().executable(), false);
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_text.floor())
+            .unwrap()
+            .writable(),
+        false
+    );
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_rodata.floor())
+            .unwrap()
+            .writable(),
+        false
+    );
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_data.floor())
+            .unwrap()
+            .executable(),
+        false
+    );
     info!("remap_test passed!");
 }
