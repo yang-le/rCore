@@ -1,9 +1,9 @@
-mod task;
 mod context;
-mod switch;
-mod pid;
 mod manager;
+mod pid;
 mod processor;
+mod switch;
+mod task;
 
 use crate::loader::get_app_data_by_name;
 use alloc::sync::Arc;
@@ -15,10 +15,10 @@ use task::{TaskControlBlock, TaskStatus};
 pub use manager::add_task;
 pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
 
-lazy_static!{
-    pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new(
-        TaskControlBlock::new(get_app_data_by_name("initproc").unwrap())
-    );
+lazy_static! {
+    pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new(TaskControlBlock::new(
+        get_app_data_by_name("initproc").unwrap()
+    ));
 }
 
 pub fn add_initproc() {

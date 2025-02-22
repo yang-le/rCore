@@ -19,7 +19,7 @@ use alloc::{
 pub enum TaskStatus {
     Ready,
     Running,
-    Zombie
+    Zombie,
 }
 
 pub struct TaskControlBlock {
@@ -35,7 +35,6 @@ pub struct TaskControlBlockInner {
     pub task_cx: TaskContext,
     pub memory_set: MemorySet,
     pub trap_cx_ppn: PhysPageNum,
-    #[allow(unused)]
     pub base_size: usize,
     pub parent: Option<Weak<TaskControlBlock>>,
     pub children: Vec<Arc<TaskControlBlock>>,

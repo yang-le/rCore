@@ -3,19 +3,23 @@ use lazy_static::lazy_static;
 
 use crate::{sync::UPSafeCell, trap::TrapContext};
 
-use super::{context::TaskContext, manager::fetch_task, switch::__switch, task::{TaskControlBlock, TaskStatus}};
-
+use super::{
+    context::TaskContext,
+    manager::fetch_task,
+    switch::__switch,
+    task::{TaskControlBlock, TaskStatus},
+};
 
 pub struct Processor {
     current: Option<Arc<TaskControlBlock>>,
-    idle_task_cx: TaskContext
+    idle_task_cx: TaskContext,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Self {
             current: None,
-            idle_task_cx: TaskContext::zero_init()
+            idle_task_cx: TaskContext::zero_init(),
         }
     }
 
@@ -33,8 +37,7 @@ impl Processor {
 }
 
 lazy_static! {
-    pub static ref PROCESSOR: UPSafeCell<Processor> =
-        UPSafeCell::new(Processor::new());
+    pub static ref PROCESSOR: UPSafeCell<Processor> = UPSafeCell::new(Processor::new());
 }
 
 pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
@@ -52,7 +55,10 @@ pub fn current_user_token() -> usize {
 }
 
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task().unwrap().inner_exclusive_access().get_trap_cx()
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .get_trap_cx()
 }
 
 pub fn run_tasks() {

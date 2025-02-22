@@ -22,7 +22,9 @@ impl Log for SimpleLogger {
         };
         println!(
             "[ kernel] \u{1B}[{}m[{:>5}] {}\u{1B}[0m",
-            color, record.level(), record.args()
+            color,
+            record.level(),
+            record.args()
         );
     }
 

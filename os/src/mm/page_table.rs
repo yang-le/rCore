@@ -1,6 +1,7 @@
 use super::{
     address::{PhysAddr, PhysPageNum, StepByOne, VirtPageNum},
-    frame_allocator::{frame_alloc, FrameTracker}, VirtAddr,
+    frame_allocator::{frame_alloc, FrameTracker},
+    VirtAddr,
 };
 use alloc::{string::String, vec::Vec};
 use bitflags::*;
@@ -172,7 +173,10 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
     let mut string = String::new();
     let mut va = ptr as usize;
     loop {
-        let ch: u8 = *(page_table.translate_va(VirtAddr::from(va)).unwrap().get_mut());
+        let ch: u8 = *(page_table
+            .translate_va(VirtAddr::from(va))
+            .unwrap()
+            .get_mut());
         if ch == 0 {
             break;
         } else {
@@ -186,5 +190,8 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
 pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     let page_table = PageTable::from_token(token);
     let va = ptr as usize;
-    page_table.translate_va(VirtAddr::from(va)).unwrap().get_mut()
+    page_table
+        .translate_va(VirtAddr::from(va))
+        .unwrap()
+        .get_mut()
 }

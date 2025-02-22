@@ -1,8 +1,8 @@
 use super::address::{PhysAddr, PhysPageNum};
 use crate::{config::MEMORY_END, sync::UPSafeCell};
 use alloc::vec::Vec;
-use lazy_static::lazy_static;
 use core::fmt::{self, Debug, Formatter};
+use lazy_static::lazy_static;
 
 trait FrameAllocator {
     fn new() -> Self;

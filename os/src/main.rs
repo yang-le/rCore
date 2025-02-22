@@ -13,14 +13,14 @@ mod sbi;
 #[macro_use]
 mod console;
 
-mod sync;
-mod trap;
-mod syscall;
 mod config;
 mod loader;
+mod mm;
+mod sync;
+mod syscall;
 mod task;
 mod timer;
-mod mm;
+mod trap;
 
 #[path = "boards/qemu.rs"]
 mod board;
@@ -53,7 +53,5 @@ fn clear_bss() {
         fn sbss();
         fn ebss();
     }
-    (sbss as usize..ebss as usize).for_each(|a| {
-        unsafe { (a as *mut u8).write_volatile(0) }
-    });
+    (sbss as usize..ebss as usize).for_each(|a| unsafe { (a as *mut u8).write_volatile(0) });
 }

@@ -12,9 +12,7 @@ const DL: u8 = 0x7fu8;
 const BS: u8 = 0x08u8;
 
 use alloc::string::String;
-use user_lib::{
-    console::getchar, exec, fork, waitpid
-};
+use user_lib::{console::getchar, exec, fork, waitpid};
 
 #[no_mangle]
 fn main() -> i32 {

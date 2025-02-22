@@ -7,7 +7,7 @@ pub struct TrapContext {
     pub sepc: usize,
     pub kernel_satp: usize,
     pub kernel_sp: usize,
-    pub trap_handler: usize
+    pub trap_handler: usize,
 }
 
 impl TrapContext {
@@ -15,7 +15,13 @@ impl TrapContext {
         self.x[2] = sp;
     }
 
-    pub fn app_init_context(entry: usize, sp: usize, kernel_satp: usize, kernel_sp: usize, trap_handler: usize) -> Self {
+    pub fn app_init_context(
+        entry: usize,
+        sp: usize,
+        kernel_satp: usize,
+        kernel_sp: usize,
+        trap_handler: usize,
+    ) -> Self {
         let mut sstatus = sstatus::read();
         sstatus.set_spp(SPP::User);
         let mut cx = Self {
@@ -24,7 +30,7 @@ impl TrapContext {
             sepc: entry,
             kernel_satp,
             kernel_sp,
-            trap_handler
+            trap_handler,
         };
         cx.set_sp(sp);
         cx

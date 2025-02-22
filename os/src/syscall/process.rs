@@ -1,9 +1,12 @@
 use alloc::sync::Arc;
 
 use crate::loader::get_app_data_by_name;
-use crate::task::{add_task, current_task, current_user_token, exit_current_and_run_next, suspend_current_and_run_next};
+use crate::mm::{translated_refmut, translated_str};
+use crate::task::{
+    add_task, current_task, current_user_token, exit_current_and_run_next,
+    suspend_current_and_run_next,
+};
 use crate::timer::get_time_us;
-use crate::mm::{translated_str, translated_refmut};
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -48,14 +51,16 @@ pub fn sys_exec(path: *const u8) -> isize {
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let task = current_task().unwrap();
     let mut inner = task.inner_exclusive_access();
-    if inner.children.iter().find(|p| {
-        pid == -1 || pid as usize == p.getpid()
-    }).is_none() {
+    if inner
+        .children
+        .iter()
+        .find(|p| pid == -1 || pid as usize == p.getpid())
+        .is_none()
+    {
         return -1;
     }
     let pair = inner.children.iter().enumerate().find(|(_, p)| {
-        p.inner_exclusive_access().is_zombie() &&
-        (pid == -1 || pid as usize == p.getpid())
+        p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
     });
     if let Some((idx, _)) = pair {
         let child = inner.children.remove(idx);

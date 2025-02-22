@@ -1,5 +1,5 @@
-use riscv::register::time;
 use crate::{config::CLOCK_FREQ, sbi::set_timer};
+use riscv::register::time;
 
 const TICKS_PER_SEC: usize = 100;
 const MICRO_PER_SEC: usize = 1_000_000;

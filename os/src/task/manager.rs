@@ -1,16 +1,18 @@
+use crate::sync::UPSafeCell;
 use alloc::{collections::vec_deque::VecDeque, sync::Arc};
 use lazy_static::lazy_static;
-use crate::sync::UPSafeCell;
 
 use super::task::TaskControlBlock;
 
 pub struct TaskManager {
-    ready_queue: VecDeque<Arc<TaskControlBlock>>
+    ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 impl TaskManager {
     pub fn new() -> Self {
-        Self { ready_queue: VecDeque::new() }
+        Self {
+            ready_queue: VecDeque::new(),
+        }
     }
 
     pub fn add(&mut self, task: Arc<TaskControlBlock>) {
@@ -23,8 +25,7 @@ impl TaskManager {
 }
 
 lazy_static! {
-    pub static ref TASK_MANAGER: UPSafeCell<TaskManager> =
-        UPSafeCell::new(TaskManager::new());
+    pub static ref TASK_MANAGER: UPSafeCell<TaskManager> = UPSafeCell::new(TaskManager::new());
 }
 
 pub fn add_task(task: Arc<TaskControlBlock>) {

@@ -9,6 +9,7 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
+use bitflags::bitflags;
 use buddy_system_allocator::LockedHeap;
 
 const USER_HEAP_SIZE: usize = 16384;
@@ -27,7 +28,8 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 pub extern "C" fn _start() -> ! {
     clear_bss();
     unsafe {
-        HEAP.lock().init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
+        HEAP.lock()
+            .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
     exit(main());
     panic!("unreachable after sys_exit!");
@@ -44,9 +46,8 @@ fn clear_bss() {
         fn start_bss();
         fn end_bss();
     }
-    (start_bss as usize..end_bss as usize).for_each(|a| {
-        unsafe { (a as *mut u8).write_volatile(0) }
-    });
+    (start_bss as usize..end_bss as usize)
+        .for_each(|a| unsafe { (a as *mut u8).write_volatile(0) });
 }
 
 use syscall::*;
@@ -77,26 +78,30 @@ pub fn getpid() -> isize {
 
 /// Wait any child process finish.
 /// Return the pid of child process, -1 if child process not exist
-/// 
+///
 /// `exit_code`: the return value of child process
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(-1, exit_code as *mut _) {
-            -2 => { yield_(); }
-            exit_pid => return exit_pid
+            -2 => {
+                yield_();
+            }
+            exit_pid => return exit_pid,
         }
     }
 }
 
 /// Wait child process with `pid` to finish.
 /// Return the pid of child process, -1 if child process not exist
-/// 
+///
 /// `exit_code`: the return value of child process
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(pid as isize, exit_code as *mut _) {
-            -2 => { yield_(); }
-            exit_pid => return exit_pid
+            -2 => {
+                yield_();
+            }
+            exit_pid => return exit_pid,
         }
     }
 }
@@ -118,4 +123,22 @@ pub fn sleep(period_ms: usize) {
     while sys_get_time() < start + 1000 * period_ms as isize {
         sys_yield();
     }
+}
+
+bitflags! {
+    pub struct OpenFlags: u32 {
+        const RDONLY = 0;
+        const WRONLY = 1 << 0;
+        const RDWR = 1 << 1;
+        const CREATE = 1 << 9;
+        const TRUNC = 1 << 10;
+    }
+}
+
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    sys_open(path, flags.bits)
+}
+
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
 }
