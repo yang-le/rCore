@@ -51,11 +51,10 @@ pub fn sys_exec(path: *const u8) -> isize {
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let task = current_task().unwrap();
     let mut inner = task.inner_exclusive_access();
-    if inner
+    if !inner
         .children
         .iter()
-        .find(|p| pid == -1 || pid as usize == p.getpid())
-        .is_none()
+        .any(|p| pid == -1 || pid as usize == p.getpid())
     {
         return -1;
     }

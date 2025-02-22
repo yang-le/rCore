@@ -2,6 +2,7 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![warn(clippy::bad_bit_mask)]
 
 #[macro_use]
 pub mod console;

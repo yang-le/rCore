@@ -28,7 +28,7 @@ impl Processor {
     }
 
     pub fn current(&mut self) -> Option<Arc<TaskControlBlock>> {
-        self.current.as_ref().map(|task| Arc::clone(task))
+        self.current.as_ref().map(Arc::clone)
     }
 
     fn get_idle_task_cx_ptr(&mut self) -> *mut TaskContext {
