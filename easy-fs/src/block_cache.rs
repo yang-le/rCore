@@ -125,3 +125,10 @@ pub fn get_block_cache(
         .lock()
         .get_block_cache(block_id, block_device)
 }
+
+pub fn block_cache_sync_all() {
+    let manager = BLOCK_CACHE_MANAGER.lock();
+    for (_, cache) in manager.queue.iter() {
+        cache.lock().sync();
+    }
+}

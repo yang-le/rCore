@@ -3,6 +3,8 @@ TARGET := riscv64gc-unknown-none-elf
 MODE := release
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
+FS_IMG := ../user/target/$(TARGET)/$(MODE)/fs.img
+APPS := ../user/src/bin/*
 
 # Board
 BOARD := qemu
@@ -37,12 +39,19 @@ QEMU_ARGS := -machine virt \
 			$(GUI_OPTION) \
 			-nographic \
 			-bios $(BOOTLOADER) \
-			-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
+			-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
+			-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
+			-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 
-build: $(KERNEL_BIN)
+build: $(KERNEL_BIN) fs-img
 
 run: build
 	@qemu-system-riscv64 $(QEMU_ARGS)
+
+fs-img: $(APPS)
+	@$(MAKE) -C ../user
+	@rm -f $(FS_IMG)
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/target/$(TARGET)/$(MODE)/
 
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@

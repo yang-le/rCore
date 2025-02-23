@@ -1,6 +1,6 @@
 use crate::{
     bitmap::Bitmap,
-    block_cache::get_block_cache,
+    block_cache::{block_cache_sync_all, get_block_cache},
     block_dev::BlockDevice,
     layout::{DataBlock, DiskInode, DiskInodeType, SuperBlock},
     vfs::Inode,
@@ -79,6 +79,7 @@ impl EasyFileSystem {
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
                 disk_inode.initialize(DiskInodeType::Directory);
             });
+        block_cache_sync_all();
         Arc::new(Mutex::new(efs))
     }
 

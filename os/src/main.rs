@@ -14,7 +14,8 @@ mod sbi;
 mod console;
 
 mod config;
-mod loader;
+mod drivers;
+mod fs;
 mod mm;
 mod sync;
 mod syscall;
@@ -37,13 +38,12 @@ pub fn rust_main() -> ! {
     logging::init();
     // info!("Hello, world!");
     mm::init();
-    // info!("back to world!");
     // mm::remap_test();
-    task::add_initproc();
     trap::init();
     trap::enabled_timer_interrupt();
     timer::set_next_trigger();
-    loader::list_apps();
+    fs::list_apps();
+    task::add_initproc();
     task::run_tasks();
     panic!("Unreachable in rust_main!");
 }

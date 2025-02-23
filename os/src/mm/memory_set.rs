@@ -1,6 +1,7 @@
 use core::arch::asm;
 
 use crate::{
+    board::MMIO,
     config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE},
     sync::UPSafeCell,
 };
@@ -149,6 +150,18 @@ impl MemorySet {
             ),
             None,
         );
+        trace!("mapping memory-mapped registers");
+        for pair in MMIO {
+            memory_set.push(
+                MapArea::new(
+                    pair.0.into(),
+                    (pair.0 + pair.1).into(),
+                    MapType::Identical,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
         memory_set
     }
 
@@ -364,6 +377,10 @@ impl MapArea {
 lazy_static! {
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
         Arc::new(UPSafeCell::new(MemorySet::new_kernel()));
+}
+
+pub fn kernel_token() -> usize {
+    KERNEL_SPACE.exclusive_access().token()
 }
 
 #[allow(unused)]
