@@ -8,7 +8,7 @@ APPS := ../user/src/bin/*
 
 # Board
 BOARD := qemu
-SBI ?= rustsbi
+SBI ?= opensbi
 BOOTLOADER := ../bootloader/$(SBI)-$(BOARD).bin
 
 # GUI

@@ -1,11 +1,20 @@
+use crate::mm::{kernel_token, PageTable};
+
 pub fn console_putchar(c: usize) {
-    #[allow(deprecated)]
-    sbi_rt::legacy::console_putchar(c);
+    sbi_rt::console_write_byte(c as u8);
 }
 
 pub fn console_getchar() -> usize {
-    #[allow(deprecated)]
-    sbi_rt::legacy::console_getchar()
+    let c: [u8; 1] = [0; 1];
+    sbi_rt::console_read(sbi_rt::Physical::new(
+        1,
+        PageTable::from_token(kernel_token())
+            .translate_va((c.as_ptr() as usize).into())
+            .unwrap()
+            .0,
+        0,
+    ));
+    c[0] as usize
 }
 
 pub fn shutdown(failure: bool) -> ! {
