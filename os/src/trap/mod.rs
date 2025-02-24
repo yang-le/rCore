@@ -39,7 +39,7 @@ fn set_user_trap_entry() {
 }
 
 #[no_mangle]
-pub fn trap_from_kernel() -> ! {
+fn trap_from_kernel() -> ! {
     panic!("A trap from kernel!");
 }
 
@@ -78,7 +78,7 @@ pub fn trap_handler() -> ! {
 
             // cx is changed during sys_exec, so we have to call it again
             cx = current_trap_cx();
-            cx.x[10] = result as usize;
+            cx.x[12] = result as usize;
         }
         Trap::Exception(Exception::StoreFault)
         | Trap::Exception(Exception::StorePageFault)
