@@ -3,7 +3,7 @@ use core::arch::asm;
 use crate::{
     board::MMIO,
     config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE},
-    sync::UPSafeCell,
+    sync::UPIntrFreeCell,
 };
 use alloc::{collections::btree_map::BTreeMap, sync::Arc, vec::Vec};
 use bitflags::bitflags;
@@ -375,8 +375,8 @@ impl MapArea {
 }
 
 lazy_static! {
-    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
-        Arc::new(UPSafeCell::new(MemorySet::new_kernel()));
+    pub static ref KERNEL_SPACE: Arc<UPIntrFreeCell<MemorySet>> =
+        Arc::new(unsafe { UPIntrFreeCell::new(MemorySet::new_kernel()) });
 }
 
 pub fn kernel_token() -> usize {

@@ -1,5 +1,3 @@
-use core::cell::RefMut;
-
 use super::{
     context::TaskContext,
     pid::{pid_alloc, KernelStack, PidHandle},
@@ -8,7 +6,7 @@ use crate::{
     config::TRAP_CONTEXT,
     fs::{File, Stdin, Stdout},
     mm::{translated_refmut, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE},
-    sync::UPSafeCell,
+    sync::{UPIntrFreeCell, UPIntrRefMut},
     trap::{trap_handler, TrapContext},
 };
 use alloc::{
@@ -22,6 +20,7 @@ pub enum TaskStatus {
     Ready,
     Running,
     Zombie,
+    Blocked,
 }
 
 pub struct TaskControlBlock {
@@ -29,7 +28,7 @@ pub struct TaskControlBlock {
     pub pid: PidHandle,
     pub kernel_stack: KernelStack,
     // mutable
-    inner: UPSafeCell<TaskControlBlockInner>,
+    inner: UPIntrFreeCell<TaskControlBlockInner>,
 }
 
 pub struct TaskControlBlockInner {
@@ -61,21 +60,23 @@ impl TaskControlBlock {
         let task_control_block = Self {
             pid: pid_handle,
             kernel_stack,
-            inner: UPSafeCell::new(TaskControlBlockInner {
-                task_status: TaskStatus::Ready,
-                task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                memory_set,
-                trap_cx_ppn,
-                base_size: user_sp,
-                parent: None,
-                children: Vec::new(),
-                exit_code: 0,
-                fd_table: vec![
-                    Some(Arc::new(Stdin)),
-                    Some(Arc::new(Stdout)),
-                    Some(Arc::new(Stdout)),
-                ],
-            }),
+            inner: unsafe {
+                UPIntrFreeCell::new(TaskControlBlockInner {
+                    task_status: TaskStatus::Ready,
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    memory_set,
+                    trap_cx_ppn,
+                    base_size: user_sp,
+                    parent: None,
+                    children: Vec::new(),
+                    exit_code: 0,
+                    fd_table: vec![
+                        Some(Arc::new(Stdin)),
+                        Some(Arc::new(Stdout)),
+                        Some(Arc::new(Stdout)),
+                    ],
+                })
+            },
         };
 
         // prepare TrapContext in user space
@@ -90,7 +91,7 @@ impl TaskControlBlock {
         task_control_block
     }
 
-    pub fn inner_exclusive_access(&self) -> RefMut<'_, TaskControlBlockInner> {
+    pub fn inner_exclusive_access(&self) -> UPIntrRefMut<'_, TaskControlBlockInner> {
         self.inner.exclusive_access()
     }
 
@@ -167,17 +168,19 @@ impl TaskControlBlock {
         let task_control_block = Arc::new(TaskControlBlock {
             pid: pid_handle,
             kernel_stack,
-            inner: UPSafeCell::new(TaskControlBlockInner {
-                task_status: TaskStatus::Ready,
-                task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                memory_set,
-                trap_cx_ppn,
-                base_size: parent_inner.base_size,
-                parent: Some(Arc::downgrade(self)),
-                children: Vec::new(),
-                exit_code: 0,
-                fd_table: new_fd_table,
-            }),
+            inner: unsafe {
+                UPIntrFreeCell::new(TaskControlBlockInner {
+                    task_status: TaskStatus::Ready,
+                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    memory_set,
+                    trap_cx_ppn,
+                    base_size: parent_inner.base_size,
+                    parent: Some(Arc::downgrade(self)),
+                    children: Vec::new(),
+                    exit_code: 0,
+                    fd_table: new_fd_table,
+                })
+            },
         });
 
         // add child

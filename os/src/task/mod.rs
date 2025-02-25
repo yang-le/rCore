@@ -11,13 +11,14 @@ mod task;
 
 use crate::fs::{open_file, OpenFlags};
 use alloc::sync::Arc;
-use context::TaskContext;
 use lazy_static::lazy_static;
 use processor::{schedule, take_current_task};
-use task::{TaskControlBlock, TaskStatus};
+use task::TaskStatus;
 
-pub use manager::add_task;
+pub use context::TaskContext;
+pub use manager::{add_task, wakeup_task};
 pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
+pub use task::TaskControlBlock;
 
 lazy_static! {
     pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new({
@@ -65,4 +66,16 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     let mut _unused = TaskContext::zero_init();
     schedule(&mut _unused as *mut _);
+}
+
+pub fn block_current_task() -> *mut TaskContext {
+    let task = take_current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_status = TaskStatus::Blocked;
+    &mut task_inner.task_cx as *mut TaskContext
+}
+
+pub fn block_current_and_run_next() {
+    let task_cx_ptr = block_current_task();
+    schedule(task_cx_ptr);
 }

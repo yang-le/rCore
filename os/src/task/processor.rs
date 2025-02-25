@@ -1,7 +1,7 @@
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
-use crate::{sync::UPSafeCell, trap::TrapContext};
+use crate::{sync::UPIntrFreeCell, trap::TrapContext};
 
 use super::{
     context::TaskContext,
@@ -37,7 +37,8 @@ impl Processor {
 }
 
 lazy_static! {
-    pub static ref PROCESSOR: UPSafeCell<Processor> = UPSafeCell::new(Processor::new());
+    pub static ref PROCESSOR: UPIntrFreeCell<Processor> =
+        unsafe { UPIntrFreeCell::new(Processor::new()) };
 }
 
 pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {

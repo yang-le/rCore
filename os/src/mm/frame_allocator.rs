@@ -3,7 +3,7 @@
 //! 使用一段指定的物理空间为内核分配物理页框
 
 use super::address::{PhysAddr, PhysPageNum};
-use crate::{config::MEMORY_END, sync::UPSafeCell};
+use crate::{config::MEMORY_END, sync::UPIntrFreeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::lazy_static;
@@ -91,8 +91,8 @@ impl StackFrameAllocator {
 type FrameAllocatorImpl = StackFrameAllocator;
 lazy_static! {
     /// 全局页框分配器
-    pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> =
-        UPSafeCell::new(FrameAllocatorImpl::new());
+    pub static ref FRAME_ALLOCATOR: UPIntrFreeCell<FrameAllocatorImpl> =
+        unsafe {UPIntrFreeCell::new(FrameAllocatorImpl::new())};
 }
 
 /// 初始化[全局页框分配器](`struct@FRAME_ALLOCATOR`)

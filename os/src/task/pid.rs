@@ -4,7 +4,7 @@ use lazy_static::lazy_static;
 use crate::{
     config::{KERNEL_STACK_SIZE, PAGE_SIZE, TRAMPOLINE},
     mm::{MapPermission, VirtAddr, KERNEL_SPACE},
-    sync::UPSafeCell,
+    sync::UPIntrFreeCell,
 };
 
 pub struct PidHandle(pub usize);
@@ -43,7 +43,8 @@ impl PidAllocator {
 }
 
 lazy_static! {
-    static ref PID_ALLOCATOR: UPSafeCell<PidAllocator> = UPSafeCell::new(PidAllocator::new());
+    static ref PID_ALLOCATOR: UPIntrFreeCell<PidAllocator> =
+        unsafe { UPIntrFreeCell::new(PidAllocator::new()) };
 }
 
 pub fn pid_alloc() -> PidHandle {

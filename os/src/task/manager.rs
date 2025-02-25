@@ -1,8 +1,8 @@
-use crate::sync::UPSafeCell;
+use crate::sync::UPIntrFreeCell;
 use alloc::{collections::vec_deque::VecDeque, sync::Arc};
 use lazy_static::lazy_static;
 
-use super::task::TaskControlBlock;
+use super::task::{TaskControlBlock, TaskStatus};
 
 pub struct TaskManager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
@@ -25,7 +25,8 @@ impl TaskManager {
 }
 
 lazy_static! {
-    pub static ref TASK_MANAGER: UPSafeCell<TaskManager> = UPSafeCell::new(TaskManager::new());
+    pub static ref TASK_MANAGER: UPIntrFreeCell<TaskManager> =
+        unsafe { UPIntrFreeCell::new(TaskManager::new()) };
 }
 
 pub fn add_task(task: Arc<TaskControlBlock>) {
@@ -34,4 +35,11 @@ pub fn add_task(task: Arc<TaskControlBlock>) {
 
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
+}
+
+pub fn wakeup_task(task: Arc<TaskControlBlock>) {
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_status = TaskStatus::Ready;
+    drop(task_inner);
+    add_task(task);
 }
