@@ -1,3 +1,7 @@
+//! 堆分配器
+//!
+//! 为rust语言中的动态数据结构提供支持
+
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
 
@@ -6,6 +10,9 @@ static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
+/// 初始化堆
+///
+/// 指定[`HEAP_SPACE`]为堆空间，大小为[`KERNEL_HEAP_SIZE`]
 pub fn init_heap() {
     unsafe {
         HEAP_ALLOCATOR

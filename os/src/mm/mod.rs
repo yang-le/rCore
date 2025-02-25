@@ -1,3 +1,7 @@
+//! 内存管理
+//!
+//!
+
 mod address;
 mod frame_allocator;
 mod heap_allocator;
@@ -12,8 +16,16 @@ pub use page_table::{
     UserBuffer,
 };
 
+/// 内存管理初始化
+///
+/// # 逻辑概要
+/// 1. 堆初始化 [`heap_allocator::init_heap`]
+/// 2. 内存页框分配器初始化 [`frame_allocator::init_frame_allocator`]
+/// 3. 映射内核地址空间并启用SV39页表
+///     1. 映射内核地址空间 [`MemorySet::new_kernel`]
+///     2. 启用SV39页表 [`MemorySet::activate`]
 pub fn init() {
     heap_allocator::init_heap();
     frame_allocator::init_frame_allocator();
-    KERNEL_SPACE.exclusive_access().activete();
+    KERNEL_SPACE.exclusive_access().activate();
 }

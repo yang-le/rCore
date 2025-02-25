@@ -261,7 +261,7 @@ impl MemorySet {
         );
     }
 
-    pub fn activete(&self) {
+    pub fn activate(&self) {
         let satp = self.page_table.token();
         satp::write(satp);
         unsafe {

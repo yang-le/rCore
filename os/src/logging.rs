@@ -1,3 +1,7 @@
+//! 日志接口
+//!
+//!
+
 use log::{self, Level, LevelFilter, Log, Metadata, Record};
 
 use crate::println;

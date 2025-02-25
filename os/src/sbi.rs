@@ -1,3 +1,7 @@
+//! SBI接口
+//!
+//!
+
 use crate::mm::{kernel_token, PageTable};
 
 pub fn console_putchar(c: usize) {

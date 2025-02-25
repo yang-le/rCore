@@ -176,7 +176,7 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
         let ch: u8 = *(page_table
             .translate_va(VirtAddr::from(va))
             .unwrap()
-            .get_mut());
+            .get_ref());
         if ch == 0 {
             break;
         } else {
