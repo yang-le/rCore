@@ -3,6 +3,7 @@
 //!
 
 use crate::drivers::{
+    block::BLOCK_DEVICE,
     chardev::{CharDevice, UART},
     plic::{IntrTargetPriority, PLIC},
 };
@@ -18,9 +19,9 @@ pub const MEMORY_END: usize = 0x8800_0000;
 /// # 格式
 /// (起始地址, 大小)
 pub const MMIO: &[(usize, usize)] = &[
-    (0xc000000, 0x210000), // VIRT_PLIC
-    (0x10000000, 0x100),   // VIRT_UART0
-    (0x10001000, 0x1000),  // VIRTIO
+    (VIRT_PLIC, 0x210000),
+    (VIRT_UART, 0x100),
+    (VIRT_IO0, 0x1000),
 ];
 
 /// 块设备驱动
@@ -29,6 +30,7 @@ pub type CharDeviceImpl = crate::drivers::chardev::NS16550a<VIRT_UART>;
 
 pub const VIRT_PLIC: usize = 0xC00_0000;
 pub const VIRT_UART: usize = 0x1000_0000;
+pub const VIRT_IO0: usize = 0x1000_8000;
 
 pub fn device_init() {
     use riscv::register::sie;
@@ -38,7 +40,7 @@ pub fn device_init() {
     plic.set_threshold(hart_id, IntrTargetPriority::Machine, 1);
 
     // irq nums: 5 keyboard, 6 mouse, 8 block, 10 uart
-    for intr_src_id in [10usize] {
+    for intr_src_id in [8usize, 10] {
         plic.enable(hart_id, IntrTargetPriority::Supervisor, intr_src_id);
         plic.set_priority(intr_src_id, 1);
     }
@@ -51,6 +53,7 @@ pub fn irq_handler() {
     let plic = unsafe { PLIC::new(VIRT_PLIC) };
     let intr_src_id = plic.claim(0, IntrTargetPriority::Supervisor);
     match intr_src_id {
+        8 => BLOCK_DEVICE.handle_irq(),
         10 => UART.handle_irq(),
         _ => panic!("unsupported IRQ {}", intr_src_id),
     }

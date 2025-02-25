@@ -120,6 +120,14 @@ use core::arch::global_asm;
 use drivers::chardev::{CharDevice, UART};
 global_asm!(include_str!("entry.asm"));
 
+use lazy_static::lazy_static;
+use sync::UPIntrFreeCell;
+
+lazy_static! {
+    pub static ref DEV_NON_BLOCKING_ACCESS: UPIntrFreeCell<bool> =
+        unsafe { UPIntrFreeCell::new(false) };
+}
+
 /// 系统入口函数
 ///
 /// # 逻辑概要
@@ -147,6 +155,7 @@ pub fn rust_main() -> ! {
     board::device_init();
     fs::list_apps();
     task::add_initproc();
+    *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
     task::run_tasks();
     panic!("Unreachable in rust_main!");
 }

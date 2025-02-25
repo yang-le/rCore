@@ -38,7 +38,7 @@ QEMU_ARGS := -machine virt \
 			-serial stdio \
 			-kernel $(KERNEL_BIN) \
 			-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
-			-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+			-device virtio-blk-device,drive=x0
 
 build: $(KERNEL_BIN) fs-img
 
