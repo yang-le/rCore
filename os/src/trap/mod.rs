@@ -9,7 +9,7 @@ pub use context::TrapContext;
 use core::arch::{asm, global_asm};
 use riscv::register::{
     scause::{self, Exception, Interrupt, Trap},
-    sie, stval,
+    sie, sscratch, sstatus, stval,
     stvec::{self, TrapMode},
 };
 
@@ -31,8 +31,14 @@ pub fn init() {
 }
 
 fn set_kernel_trap_entry() {
+    extern "C" {
+        fn __alltraps();
+        fn __alltraps_k();
+    }
+    let __alltraps_k_va = __alltraps_k as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
-        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+        stvec::write(__alltraps_k_va, TrapMode::Direct);
+        sscratch::write(trap_from_kernel as usize);
     }
 }
 
@@ -43,12 +49,42 @@ fn set_user_trap_entry() {
 }
 
 #[no_mangle]
-fn trap_from_kernel() -> ! {
-    panic!("A trap from kernel!");
+fn trap_from_kernel(_trap_cx: &TrapContext) {
+    let scause = scause::read();
+    let stval = stval::read();
+    match scause.cause() {
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            crate::board::irq_handler();
+        }
+        Trap::Interrupt(Interrupt::SupervisorTimer) => {
+            set_next_trigger();
+            // suspend_current_and_run_next();
+        }
+        _ => {
+            panic!(
+                "Unsupported trap from kernel: {:?}, stval = {:#x}!",
+                scause.cause(),
+                stval
+            );
+        }
+    }
+}
+
+fn enable_supervisor_interrupt() {
+    unsafe {
+        sstatus::set_sie();
+    }
+}
+
+fn disable_supervisor_interrupt() {
+    unsafe {
+        sstatus::clear_sie();
+    }
 }
 
 #[no_mangle]
 pub fn trap_return() -> ! {
+    disable_supervisor_interrupt();
     set_user_trap_entry();
     let trap_cx_ptr = TRAP_CONTEXT;
     let user_satp = current_user_token();
@@ -78,6 +114,9 @@ pub fn trap_handler() -> ! {
         Trap::Exception(Exception::UserEnvCall) => {
             let mut cx = current_trap_cx();
             cx.sepc += 4;
+
+            enable_supervisor_interrupt();
+
             let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
 
             // cx is changed during sys_exec, so we have to call it again
@@ -105,6 +144,9 @@ pub fn trap_handler() -> ! {
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
             suspend_current_and_run_next();
+        }
+        Trap::Interrupt(Interrupt::SupervisorExternal) => {
+            crate::board::irq_handler();
         }
         _ => {
             panic!(

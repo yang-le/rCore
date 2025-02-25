@@ -116,6 +116,8 @@ mod trap;
 mod board;
 
 use core::arch::global_asm;
+
+use drivers::chardev::{CharDevice, UART};
 global_asm!(include_str!("entry.asm"));
 
 /// 系统入口函数
@@ -138,9 +140,11 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();
+    UART.init();
     trap::init();
     trap::enabled_timer_interrupt();
     timer::set_next_trigger();
+    board::device_init();
     fs::list_apps();
     task::add_initproc();
     task::run_tasks();

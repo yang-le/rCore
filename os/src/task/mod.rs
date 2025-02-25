@@ -12,12 +12,12 @@ mod task;
 use crate::fs::{open_file, OpenFlags};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
-use processor::{schedule, take_current_task};
+use processor::take_current_task;
 use task::TaskStatus;
 
 pub use context::TaskContext;
 pub use manager::{add_task, wakeup_task};
-pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
+pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks, schedule};
 pub use task::TaskControlBlock;
 
 lazy_static! {

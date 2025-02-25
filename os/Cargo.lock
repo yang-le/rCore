@@ -82,6 +82,7 @@ dependencies = [
  "riscv",
  "sbi-rt",
  "virtio-drivers",
+ "volatile",
  "xmas-elf",
 ]
 
