@@ -17,11 +17,13 @@ impl Write for Stdout {
     }
 }
 
+/// 输出字符串
 pub fn print(args: fmt::Arguments) {
     Stdout.write_fmt(args).unwrap();
 }
 
 #[macro_export]
+/// 输出格式化字符串
 macro_rules! print {
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!($fmt $(, $($arg)+)?));
@@ -29,6 +31,7 @@ macro_rules! print {
 }
 
 #[macro_export]
+/// 输出格式化字符串并换行
 macro_rules! println {
     ($fmt: literal $(, $($arg: tt)+)?) => {
         $crate::console::print(format_args!(concat!($fmt, "\n") $(, $($arg)+)?));

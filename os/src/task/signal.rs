@@ -75,15 +75,4 @@ impl Default for SignalAction {
 
 pub const MAX_SIG: usize = 31;
 
-#[derive(Clone)]
-pub struct SignalActions {
-    pub table: [SignalAction; MAX_SIG + 1],
-}
-
-impl Default for SignalActions {
-    fn default() -> Self {
-        Self {
-            table: [SignalAction::default(); MAX_SIG + 1],
-        }
-    }
-}
+pub type SignalActions = [SignalAction; MAX_SIG + 1];

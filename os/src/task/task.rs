@@ -196,7 +196,7 @@ impl TaskControlBlock {
                     fd_table: new_fd_table,
                     signal_mask: parent_inner.signal_mask,
                     signal_recv: SignalFlags::empty(),
-                    signal_actions: parent_inner.signal_actions.clone(),
+                    signal_actions: parent_inner.signal_actions,
                     frozen: false,
                     killed: false,
                     handling_sig: -1,

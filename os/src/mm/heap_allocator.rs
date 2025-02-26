@@ -6,8 +6,10 @@ use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
 
 #[global_allocator]
+/// 全局堆分配器
 static HEAP_ALLOCATOR: LockedHeap = LockedHeap::empty();
 
+/// 全局堆空间
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
 /// 初始化堆
@@ -22,10 +24,12 @@ pub fn init_heap() {
 }
 
 #[alloc_error_handler]
+/// 堆分配错误处理函数
 fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Heap allocation error, layout = {:?}", layout);
 }
 
+#[doc(hidden)]
 #[allow(unused)]
 pub fn heap_test() {
     use alloc::boxed::Box;

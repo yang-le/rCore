@@ -121,7 +121,7 @@ fn check_pending_signals() {
             } else {
                 let handling_sig = handling_sig as usize;
                 // does current handling sigaction mask this signal?
-                if !task_inner.signal_actions.table[handling_sig]
+                if !task_inner.signal_actions[handling_sig]
                     .mask
                     .contains(signal)
                 {
@@ -167,7 +167,7 @@ fn call_kernel_signal_handler(signal: SignalFlags) {
 fn call_user_signal_handler(sig: usize, signal: SignalFlags) {
     let task = current_task().unwrap();
     let mut task_inner = task.inner_exclusive_access();
-    let handler = task_inner.signal_actions.table[sig].handler;
+    let handler = task_inner.signal_actions[sig].handler;
     if handler != 0 {
         task_inner.handling_sig = sig as isize;
         task_inner.signal_recv ^= signal;

@@ -124,6 +124,7 @@ use lazy_static::lazy_static;
 use sync::UPIntrFreeCell;
 
 lazy_static! {
+    /// 是否启用非阻塞块设备访问
     pub static ref DEV_NON_BLOCKING_ACCESS: UPIntrFreeCell<bool> =
         unsafe { UPIntrFreeCell::new(false) };
 }

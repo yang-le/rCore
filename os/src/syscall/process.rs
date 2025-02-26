@@ -113,9 +113,9 @@ pub fn sys_sigaction(
         if check_sigaction_error(flag, action as usize, old_action as usize) {
             return -1;
         }
-        let prev_action = inner.signal_actions.table[signum as usize];
+        let prev_action = inner.signal_actions[signum as usize];
         *translated_refmut(token, old_action) = prev_action;
-        inner.signal_actions.table[signum as usize] = *translated_ref(token, action);
+        inner.signal_actions[signum as usize] = *translated_ref(token, action);
         0
     } else {
         -1

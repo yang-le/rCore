@@ -1,3 +1,7 @@
+//! 内存空间
+//!
+//!
+
 use core::arch::asm;
 
 use crate::{
@@ -16,34 +20,55 @@ use super::{
     page_table::{PTEFlags, PageTable, PageTableEntry},
 };
 
+/// 一块被映射的内存区域
 pub struct MapArea {
+    /// 被映射的虚拟页号范围
     vpn_range: VPNRange,
+    /// 此内存区域关联的物理页框
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
+    /// 映射类型
     map_type: MapType,
+    /// 页面权限
     map_perm: MapPermission,
 }
 
+/// 映射类型
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum MapType {
+    /// 恒等映射
     Identical,
+    /// 分配页框的映射
     Framed,
 }
 
 bitflags! {
+    /// 页面权限
     pub struct MapPermission: u8 {
+        /// 可读权限
         const R = 1 << 1;
+        /// 可写权限
         const W = 1 << 2;
+        /// 可执行权限
         const X = 1 << 3;
+        /// 用户态可访问权限
         const U = 1 << 4;
     }
 }
 
+/// 地址空间
+///
+/// 一组被映射的内存区域
 pub struct MemorySet {
+    /// 根页表，将其物理页号写入`satp`寄存器后即开启分页模式
     page_table: PageTable,
+    /// 此地址空间下的所有内存区域
     areas: Vec<MapArea>,
 }
 
 impl MemorySet {
+    /// 创建一个新的地址空间
+    ///
+    /// 此函数仅分配根页表对应的物理页
     pub fn new_bare() -> Self {
         Self {
             page_table: PageTable::new(),
@@ -51,10 +76,17 @@ impl MemorySet {
         }
     }
 
+    /// 返回[`PageTable::token`]
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
 
+    /// 向地址空间中加入内存映射区域`map_area`并向其中复制数据`data`
+    ///
+    /// # 逻辑概要
+    /// 1. 建立对`map_area`区域的映射[`MapArea::map`]
+    /// 2. 如果`data`非[`None`]，复制数据到映射好的区域中[`MapArea::copy_data`]
+    /// 3. 将此区域插入[`MemorySet::areas`]
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -63,6 +95,11 @@ impl MemorySet {
         self.areas.push(map_area);
     }
 
+    /// 向地址空间中插入分配页框的映射区域
+    ///
+    /// # 逻辑概要
+    /// 1. 先以给定的参数构造[`MapArea`]
+    /// 2. 调用[`MemorySet::push`]
     pub fn insert_framed_area(
         &mut self,
         start_va: VirtAddr,
@@ -75,6 +112,14 @@ impl MemorySet {
         );
     }
 
+    /// 构造内核的地址空间
+    ///
+    /// # 逻辑概要
+    /// 1. 创建一个新的地址空间
+    /// 2. 映射跳板区(RX)[`MemorySet::map_trampoline`]
+    /// 3. 以恒等映射分别映射内核的代码区(RX)、只读数据区(R)、数据区(RW)和`BSS`区域(RW)[`MemorySet::push`]
+    /// 4. 恒等映射内核结束到内存结束的所有物理内存(RW)
+    /// 5. 恒等映射`MMIO`区域(RW)
     pub fn new_kernel() -> Self {
         use log::*;
         extern "C" {
@@ -165,8 +210,17 @@ impl MemorySet {
         memory_set
     }
 
-    /// Inlude sections in elf, trampoline, TrapContext and user stack,
-    /// also return user_sp and entry point.
+    /// 从`ELF`数据构造地址空间
+    ///
+    /// # 逻辑概要
+    /// 1. 创建一个新的地址空间
+    /// 2. 映射跳板区(RX) [`MemorySet::map_trampoline`]
+    /// 3. 解析`ELF`各段的权限并进行映射和数据复制 [`MemorySet::push`]
+    /// 4. 间隔1个页面后映射用户栈(URW)
+    /// 5. 在跳板区前映射陷入上下文区域(RW)
+    ///
+    /// # 返回值
+    /// 返回构造的地址空间，用户栈顶和程序入口
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         memory_set.map_trampoline();
@@ -205,23 +259,15 @@ impl MemorySet {
         // guard page
         user_stack_bottom += PAGE_SIZE;
         let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
-        memory_set.push(
-            MapArea::new(
-                user_stack_bottom.into(),
-                user_stack_top.into(),
-                MapType::Framed,
-                MapPermission::R | MapPermission::W | MapPermission::U,
-            ),
-            None,
+        memory_set.insert_framed_area(
+            user_stack_bottom.into(),
+            user_stack_top.into(),
+            MapPermission::R | MapPermission::W | MapPermission::U,
         );
-        memory_set.push(
-            MapArea::new(
-                TRAP_CONTEXT.into(),
-                TRAMPOLINE.into(),
-                MapType::Framed,
-                MapPermission::R | MapPermission::W,
-            ),
-            None,
+        memory_set.insert_framed_area(
+            TRAP_CONTEXT.into(),
+            TRAMPOLINE.into(),
+            MapPermission::R | MapPermission::W,
         );
         (
             memory_set,
@@ -230,6 +276,13 @@ impl MemorySet {
         )
     }
 
+    /// 从已存在的用户空间构造
+    /// # 逻辑概要
+    /// 1. 创建一个新的地址空间
+    /// 2. 映射跳板区(RX) [`MemorySet::map_trampoline`]
+    /// 3. 从`user_space`的[`MemorySet::areas`]中
+    ///     1. 逐个构造`area`并向新空间[`push`](`MemorySet::push`)
+    ///     2. 从[`MapArea::vpn_range`]中逐个转为物理页号并进行数据复制
     pub fn from_existed_user(user_space: &MemorySet) -> MemorySet {
         let mut memory_set = Self::new_bare();
         memory_set.map_trampoline();
@@ -249,6 +302,11 @@ impl MemorySet {
         memory_set
     }
 
+    /// 映射跳板区(RX)
+    ///
+    /// 注意此区域虽为内核代码段中的固定区域，但不是恒等映射，
+    /// 也不是由[全局页框分配器](`struct@super::frame_allocator::FRAME_ALLOCATOR`)分配的，
+    /// 故不使用[`MapArea`]构造，而是直接调用[`PageTable::map`]来映射。
     fn map_trampoline(&mut self) {
         extern "C" {
             fn strampoline();
@@ -261,6 +319,9 @@ impl MemorySet {
         );
     }
 
+    /// 激活地址空间
+    ///
+    /// 将[`MemorySet::token`]写入`satp`寄存器并调用`asm!("sfence.vma")`刷新地址转换相关硬件
     pub fn activate(&self) {
         let satp = self.page_table.token();
         satp::write(satp);
@@ -269,14 +330,23 @@ impl MemorySet {
         }
     }
 
+    /// 查表找出`vpn`对应的页表项
+    ///
+    /// 参见[`super::PageTable::translate`]
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
     }
 
+    /// 回收所有下辖页面
+    ///
+    /// 通过调用[`MemorySet::areas`]的[`Vec::clear`]方法触发[`FrameTracker::drop`]
     pub fn recycle_data_pages(&mut self) {
         self.areas.clear();
     }
 
+    /// 回收以`start_vpn`为起始地址的内存区域
+    ///
+    /// 查找该内存区域，解除映射并从[`MemorySet::areas`]中移除
     pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
         if let Some((idx, area)) = self
             .areas
@@ -291,6 +361,7 @@ impl MemorySet {
 }
 
 impl MapArea {
+    /// 以起始和结束虚拟地址以及给定的映射类型和权限信息构造
     pub fn new(
         start_va: VirtAddr,
         end_va: VirtAddr,
@@ -307,19 +378,27 @@ impl MapArea {
         }
     }
 
+    /// 在`page_table`中构建此内存区域的映射
+    ///
+    /// 调用[`MapArea::map_one`]逐个映射虚拟页面
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.map_one(page_table, vpn);
         }
     }
 
+    /// 从`page_table`中移除此内存区域的映射
+    ///
+    /// 调用[`MapArea::unmap_one`]逐个移除虚拟页面的映射
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.unmap_one(page_table, vpn);
         }
     }
 
-    /// `data`: start-aligned but maybe with shorter length
+    /// 将`data`复制到此内存区域的开头
+    ///
+    /// 要求此内存区域不为恒等映射
     pub fn copy_data(&mut self, page_table: &PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
         let mut start: usize = 0;
@@ -341,6 +420,12 @@ impl MapArea {
         }
     }
 
+    /// 在`page_table`中建立对虚拟页面`vpn`的映射
+    ///
+    /// # 逻辑概要
+    /// 1. 若为恒等映射，可直接得出`ppn`
+    /// 2. 若为分配页框的映射，分配一个新的物理页框并插入[`MapArea::data_frames`]中
+    /// 3. 调用[`PageTable::map`]
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
         match self.map_type {
@@ -357,6 +442,11 @@ impl MapArea {
         page_table.map(vpn, ppn, pte_flags);
     }
 
+    /// 从`page_table`中移除对虚拟页面`vpn`的映射
+    ///
+    /// # 逻辑概要
+    /// 1. 若不为恒等映射，从[`MapArea::data_frames`]中移除对应的物理页框
+    /// 2. 调用[`PageTable::unmap`]
     pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         if self.map_type == MapType::Framed {
             self.data_frames.remove(&vpn);
@@ -364,6 +454,7 @@ impl MapArea {
         page_table.unmap(vpn);
     }
 
+    /// 从另一`MapArea`构造
     pub fn from_another(another: &MapArea) -> Self {
         Self {
             vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()),
@@ -375,14 +466,19 @@ impl MapArea {
 }
 
 lazy_static! {
+    /// 内核地址空间
     pub static ref KERNEL_SPACE: Arc<UPIntrFreeCell<MemorySet>> =
         Arc::new(unsafe { UPIntrFreeCell::new(MemorySet::new_kernel()) });
 }
 
+/// 取得内核空间对应的`satp`寄存器值
+///
+/// 参见[`MemorySet::token`]、[`PageTable::from_token`]
 pub fn kernel_token() -> usize {
     KERNEL_SPACE.exclusive_access().token()
 }
 
+#[doc(hidden)]
 #[allow(unused)]
 pub fn remap_test() {
     use log::*;

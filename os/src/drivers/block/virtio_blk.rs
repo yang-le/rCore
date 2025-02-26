@@ -3,7 +3,7 @@
 //!
 
 use crate::{
-    board::VIRT_IO0,
+    board::virtio_mmio_bus_addr,
     drivers::bus::virtio::VirtioHal,
     sync::{Condvar, UPIntrFreeCell},
     task::schedule,
@@ -21,7 +21,9 @@ pub struct VirtIOBlock {
 impl VirtIOBlock {
     pub fn new() -> Self {
         let virtio_blk = unsafe {
-            UPIntrFreeCell::new(VirtIOBlk::new(&mut *(VIRT_IO0 as *mut VirtIOHeader)).unwrap())
+            UPIntrFreeCell::new(
+                VirtIOBlk::new(&mut *(virtio_mmio_bus_addr(0) as *mut VirtIOHeader)).unwrap(),
+            )
         };
         let mut condvars = BTreeMap::new();
         let channels = virtio_blk.exclusive_access().virt_queue_size();
