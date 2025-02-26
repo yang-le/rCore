@@ -17,12 +17,11 @@ use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
     syscall::syscall,
     task::{
-        current_trap_cx, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next,
+        check_signal_error_of_current, current_add_signal, current_trap_cx, current_user_token,
+        exit_current_and_run_next, handle_signals, suspend_current_and_run_next, SignalFlags,
     },
     timer::set_next_trigger,
 };
-use log::*;
 
 global_asm!(include_str!("trap.S"));
 
@@ -129,17 +128,10 @@ pub fn trap_handler() -> ! {
         | Trap::Exception(Exception::LoadPageFault)
         | Trap::Exception(Exception::InstructionFault)
         | Trap::Exception(Exception::InstructionPageFault) => {
-            error!(
-                "{:?} in application, bad addr = {:#x}, bad instruction = {:#x}, core dumped.",
-                scause.cause(),
-                stval,
-                current_trap_cx().sepc
-            );
-            exit_current_and_run_next(-2);
+            current_add_signal(SignalFlags::SIGSEGV);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            error!("IllegalInstruction in application, core dumped.");
-            exit_current_and_run_next(-3);
+            current_add_signal(SignalFlags::SIGILL);
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
@@ -156,6 +148,13 @@ pub fn trap_handler() -> ! {
             );
         }
     }
+
+    handle_signals();
+    if let Some((errno, msg)) = check_signal_error_of_current() {
+        log::error!("{}", msg);
+        exit_current_and_run_next(errno);
+    }
+
     trap_return();
 }
 

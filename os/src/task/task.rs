@@ -1,6 +1,7 @@
 use super::{
     context::TaskContext,
     pid::{pid_alloc, KernelStack, PidHandle},
+    signal::{SignalActions, SignalFlags},
 };
 use crate::{
     config::TRAP_CONTEXT,
@@ -41,6 +42,13 @@ pub struct TaskControlBlockInner {
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
     pub fd_table: Vec<Option<Arc<dyn File>>>,
+    pub signal_mask: SignalFlags,
+    pub signal_recv: SignalFlags,
+    pub signal_actions: SignalActions,
+    pub killed: bool,
+    pub frozen: bool,
+    pub handling_sig: isize,
+    pub trap_ctx_backup: Option<TrapContext>,
 }
 
 impl TaskControlBlock {
@@ -75,6 +83,13 @@ impl TaskControlBlock {
                         Some(Arc::new(Stdout)),
                         Some(Arc::new(Stdout)),
                     ],
+                    signal_mask: SignalFlags::empty(),
+                    signal_recv: SignalFlags::empty(),
+                    signal_actions: SignalActions::default(),
+                    frozen: false,
+                    killed: false,
+                    handling_sig: -1,
+                    trap_ctx_backup: None,
                 })
             },
         };
@@ -179,6 +194,13 @@ impl TaskControlBlock {
                     children: Vec::new(),
                     exit_code: 0,
                     fd_table: new_fd_table,
+                    signal_mask: parent_inner.signal_mask,
+                    signal_recv: SignalFlags::empty(),
+                    signal_actions: parent_inner.signal_actions.clone(),
+                    frozen: false,
+                    killed: false,
+                    handling_sig: -1,
+                    trap_ctx_backup: None,
                 })
             },
         });
