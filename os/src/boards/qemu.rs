@@ -4,7 +4,8 @@
 
 use crate::drivers::{
     block::BLOCK_DEVICE,
-    chardev::{CharDevice, UART},
+    chardev::UART,
+    input::{KEYBOARD_DEVICE, MOUSE_DEVICE},
     plic::{IntrTargetPriority, PLIC},
 };
 
@@ -27,10 +28,16 @@ pub const MMIO: &[(usize, usize)] = &[
 /// 块设备驱动
 pub type BlockDeviceImpl = crate::drivers::block::VirtIOBlock;
 pub type CharDeviceImpl = crate::drivers::chardev::NS16550a<VIRT_UART>;
+pub type GpuDeviceImpl = crate::drivers::gpu::VirtIOGpuWrapper;
+pub type KeyboardDeviceImpl = crate::drivers::input::VirtIOInputWrapper<VIRT_KEYBOARD>;
+pub type MouseDeviceImpl = crate::drivers::input::VirtIOInputWrapper<VIRT_MOUSE>;
+pub type NetDeviceImpl = crate::drivers::net::VirtIONetWrapper;
 
 pub const VIRT_PLIC: usize = 0xC00_0000;
 pub const VIRT_UART: usize = 0x1000_0000;
 pub const VIRT_MMIO: usize = 0x1000_1000;
+pub const VIRT_KEYBOARD: usize = VIRT_MMIO + 0x2000;
+pub const VIRT_MOUSE: usize = VIRT_MMIO + 0x3000;
 
 pub fn virtio_mmio_bus_addr(i: u8) -> usize {
     assert!(i <= 7);
@@ -44,8 +51,8 @@ pub fn device_init() {
     plic.set_threshold(hart_id, IntrTargetPriority::Supervisor, 0);
     plic.set_threshold(hart_id, IntrTargetPriority::Machine, 1);
 
-    // irq nums: 1 block, 10 uart
-    for intr_src_id in [1usize, 10] {
+    // irq nums: 1 block, 3 keyboard, 4 mouse, 10 uart
+    for intr_src_id in [1usize, 3, 4, 10] {
         plic.enable(hart_id, IntrTargetPriority::Supervisor, intr_src_id);
         plic.set_priority(intr_src_id, 1);
     }
@@ -59,6 +66,8 @@ pub fn irq_handler() {
     let intr_src_id = plic.claim(0, IntrTargetPriority::Supervisor);
     match intr_src_id {
         1 => BLOCK_DEVICE.handle_irq(),
+        3 => KEYBOARD_DEVICE.handle_irq(),
+        4 => MOUSE_DEVICE.handle_irq(),
         10 => UART.handle_irq(),
         _ => panic!("unsupported IRQ {}", intr_src_id),
     }

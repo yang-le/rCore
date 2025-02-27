@@ -4,7 +4,7 @@
 
 use core::fmt::{self, Write};
 
-use crate::drivers::chardev::{CharDevice, UART};
+use crate::drivers::chardev::UART;
 
 struct Stdout;
 

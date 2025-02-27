@@ -38,7 +38,12 @@ QEMU_ARGS := -machine virt \
 			-serial stdio \
 			-kernel $(KERNEL_BIN) \
 			-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
-			-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
+			-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+			-device virtio-gpu-device,bus=virtio-mmio-bus.1 \
+			-device virtio-keyboard-device,bus=virtio-mmio-bus.2 \
+			-device virtio-mouse-device,bus=virtio-mmio-bus.3 \
+			-device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.4 \
+			-netdev user,id=net0
 
 build: $(KERNEL_BIN) fs-img
 

@@ -1,4 +1,4 @@
-use crate::drivers::chardev::{CharDevice, UART};
+use crate::drivers::chardev::UART;
 
 use super::File;
 

@@ -117,7 +117,12 @@ mod board;
 
 use core::arch::global_asm;
 
-use drivers::chardev::{CharDevice, UART};
+use drivers::{
+    chardev::UART,
+    gpu::GPU_DEVICE,
+    input::{KEYBOARD_DEVICE, MOUSE_DEVICE},
+    net::NET_DEVICE,
+};
 global_asm!(include_str!("entry.asm"));
 
 use lazy_static::lazy_static;
@@ -150,6 +155,10 @@ pub fn rust_main() -> ! {
     logging::init();
     mm::init();
     UART.init();
+    let _gpu = GPU_DEVICE.clone();
+    let _keyboard = KEYBOARD_DEVICE.clone();
+    let _mouse = MOUSE_DEVICE.clone();
+    let _net = NET_DEVICE.clone();
     trap::init();
     trap::enabled_timer_interrupt();
     timer::set_next_trigger();
