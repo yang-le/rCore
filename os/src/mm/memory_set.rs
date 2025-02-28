@@ -6,7 +6,7 @@ use core::arch::asm;
 
 use crate::{
     board::MMIO,
-    config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE},
+    config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE},
     sync::UPIntrFreeCell,
 };
 use alloc::{collections::btree_map::BTreeMap, sync::Arc, vec::Vec};
@@ -216,11 +216,9 @@ impl MemorySet {
     /// 1. 创建一个新的地址空间
     /// 2. 映射跳板区(RX) [`MemorySet::map_trampoline`]
     /// 3. 解析`ELF`各段的权限并进行映射和数据复制 [`MemorySet::push`]
-    /// 4. 间隔1个页面后映射用户栈(URW)
-    /// 5. 在跳板区前映射陷入上下文区域(RW)
     ///
     /// # 返回值
-    /// 返回构造的地址空间，用户栈顶和程序入口
+    /// 返回构造的地址空间，用户栈基址和程序入口
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
         memory_set.map_trampoline();
@@ -255,23 +253,11 @@ impl MemorySet {
             }
         }
         let max_end_va: VirtAddr = max_end_vpn.into();
-        let mut user_stack_bottom: usize = max_end_va.into();
-        // guard page
-        user_stack_bottom += PAGE_SIZE;
-        let user_stack_top = user_stack_bottom + USER_STACK_SIZE;
-        memory_set.insert_framed_area(
-            user_stack_bottom.into(),
-            user_stack_top.into(),
-            MapPermission::R | MapPermission::W | MapPermission::U,
-        );
-        memory_set.insert_framed_area(
-            TRAP_CONTEXT.into(),
-            TRAMPOLINE.into(),
-            MapPermission::R | MapPermission::W,
-        );
+        let mut user_stack_base: usize = max_end_va.into();
+        user_stack_base += PAGE_SIZE;
         (
             memory_set,
-            user_stack_top,
+            user_stack_base,
             elf.header.pt2.entry_point() as usize,
         )
     }

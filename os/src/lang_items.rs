@@ -2,7 +2,7 @@
 //!
 //!
 
-use crate::{println, sbi::shutdown, task::current_task};
+use crate::{println, sbi::shutdown, task::current_kstack_top};
 use core::{arch::asm, panic::PanicInfo};
 use log::*;
 
@@ -25,17 +25,15 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 unsafe fn backtrace() {
-    if let Some(current_task) = current_task() {
-        let mut fp: usize;
-        let stop = current_task.kernel_stack.get_top();
-        asm!("mv {}, s0", out(reg) fp);
-        println!("Backtrace:");
-        for i in 0..32 {
-            if fp == stop {
-                break;
-            }
-            println!("#{}: ra={:#x}", i, *((fp - 8) as *const usize));
-            fp = *((fp - 16) as *const usize);
+    let mut fp: usize;
+    let stop = current_kstack_top();
+    asm!("mv {}, s0", out(reg) fp);
+    println!("Backtrace:");
+    for i in 0..32 {
+        if fp == stop {
+            break;
         }
+        println!("#{}: ra={:#x}", i, *((fp - 8) as *const usize));
+        fp = *((fp - 16) as *const usize);
     }
 }
