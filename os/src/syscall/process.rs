@@ -5,10 +5,10 @@ use alloc::vec::Vec;
 use crate::fs::{open_file, OpenFlags};
 use crate::mm::{translated_ref, translated_refmut, translated_str};
 use crate::task::{
-    current_process, current_task, current_user_token, exit_current_and_run_next, pid2process,
+    current_process, current_user_token, exit_current_and_run_next, pid2process,
     suspend_current_and_run_next, SignalAction, SignalFlags, MAX_SIG,
 };
-use crate::timer::get_time_us;
+use crate::timer::get_time_ms;
 
 pub fn sys_exit(exit_code: i32) -> ! {
     exit_current_and_run_next(exit_code);
@@ -21,7 +21,7 @@ pub fn sys_yield() -> isize {
 }
 
 pub fn sys_get_time() -> isize {
-    get_time_us() as isize
+    get_time_ms() as isize
 }
 
 pub fn sys_fork() -> isize {
@@ -88,7 +88,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 }
 
 pub fn sys_getpid() -> isize {
-    current_task().unwrap().process.upgrade().unwrap().getpid() as isize
+    current_process().getpid() as isize
 }
 
 fn check_sigaction_error(signal: SignalFlags, action: usize, old_action: usize) -> bool {

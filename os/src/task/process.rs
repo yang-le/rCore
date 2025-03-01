@@ -8,7 +8,7 @@ use super::{
 use crate::{
     fs::{File, Stdin, Stdout},
     mm::{translated_refmut, MemorySet, KERNEL_SPACE},
-    sync::{UPIntrFreeCell, UPIntrRefMut},
+    sync::{Condvar, Mutex, Semaphore, UPIntrFreeCell, UPIntrRefMut},
     trap::{trap_handler, TrapContext},
 };
 use alloc::{
@@ -41,6 +41,9 @@ pub struct ProcessControlBlockInner {
     pub trap_ctx_backup: Option<TrapContext>,
     pub task_res_allocator: RecycleAllocator,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
+    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+    pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
+    pub condvar_list: Vec<Option<Arc<Condvar>>>,
 }
 
 impl ProcessControlBlock {
@@ -71,6 +74,9 @@ impl ProcessControlBlock {
                     trap_ctx_backup: None,
                     task_res_allocator: RecycleAllocator::new(),
                     tasks: Vec::new(),
+                    mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 })
             },
         });
@@ -193,6 +199,9 @@ impl ProcessControlBlock {
                     trap_ctx_backup: None,
                     task_res_allocator: RecycleAllocator::new(),
                     tasks: Vec::new(),
+                    mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
+                    condvar_list: Vec::new(),
                 })
             },
         });

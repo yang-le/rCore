@@ -14,6 +14,7 @@ mod task;
 use crate::{
     fs::{open_file, OpenFlags},
     sbi::shutdown,
+    timer::remove_timer,
 };
 use alloc::{sync::Arc, vec::Vec};
 use id::{TaskUserRes, IDLE_PID};
@@ -21,6 +22,7 @@ use lazy_static::lazy_static;
 use log::*;
 use manager::{remove_from_pid2task, remove_task};
 use processor::take_current_task;
+use task::TaskStatus;
 
 pub use context::TaskContext;
 pub use manager::{add_task, pid2process, wakeup_task};
@@ -31,7 +33,6 @@ pub use processor::{
 };
 pub use signal::{SignalAction, SignalFlags, MAX_SIG};
 pub use task::TaskControlBlock;
-pub use task::TaskStatus;
 
 lazy_static! {
     pub static ref INITPROC: Arc<ProcessControlBlock> = {
@@ -132,7 +133,7 @@ pub fn block_current_and_run_next() {
 
 pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
     remove_task(Arc::clone(&task));
-    // remove_timer(Arc::clone(&task));
+    remove_timer(Arc::clone(&task));
 }
 
 pub fn current_add_signal(signal: SignalFlags) {

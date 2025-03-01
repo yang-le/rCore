@@ -21,7 +21,7 @@ use crate::{
         current_trap_cx_user_va, current_user_token, exit_current_and_run_next, handle_signals,
         suspend_current_and_run_next, SignalFlags,
     },
-    timer::set_next_trigger,
+    timer::{check_timer, set_next_trigger},
 };
 
 global_asm!(include_str!("trap.S"));
@@ -58,7 +58,8 @@ fn trap_from_kernel(_trap_cx: &TrapContext) {
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
-            // suspend_current_and_run_next();
+            check_timer();
+            // do not schedule now
         }
         _ => {
             panic!(
@@ -136,6 +137,7 @@ pub fn trap_handler() -> ! {
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
+            check_timer();
             suspend_current_and_run_next();
         }
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
