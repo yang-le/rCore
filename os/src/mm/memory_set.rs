@@ -39,6 +39,7 @@ pub enum MapType {
     Identical,
     /// 分配页框的映射
     Framed,
+    Linear(isize),
 }
 
 bitflags! {
@@ -87,7 +88,7 @@ impl MemorySet {
     /// 1. 建立对`map_area`区域的映射[`MapArea::map`]
     /// 2. 如果`data`非[`None`]，复制数据到映射好的区域中[`MapArea::copy_data`]
     /// 3. 将此区域插入[`MemorySet::areas`]
-    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
+    pub fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
             map_area.copy_data(&self.page_table, data);
@@ -422,6 +423,10 @@ impl MapArea {
                 let frame = frame_alloc().unwrap();
                 ppn = frame.ppn;
                 self.data_frames.insert(vpn, frame);
+            }
+            MapType::Linear(pn_offset) => {
+                assert!(vpn.0 < (1usize << 27));
+                ppn = PhysPageNum((vpn.0 as isize + pn_offset) as usize);
             }
         }
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits).unwrap();
