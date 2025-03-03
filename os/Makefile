@@ -43,7 +43,7 @@ QEMU_ARGS := -machine virt \
 			-device virtio-keyboard-device,bus=virtio-mmio-bus.2 \
 			-device virtio-mouse-device,bus=virtio-mmio-bus.3 \
 			-device virtio-net-device,netdev=net0,bus=virtio-mmio-bus.4 \
-			-netdev user,id=net0
+			-netdev user,id=net0,hostfwd=udp::6200-:2001,hostfwd=tcp::6201-:80
 
 build: $(KERNEL_BIN) fs-img
 

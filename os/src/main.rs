@@ -106,6 +106,7 @@ mod config;
 mod drivers;
 mod fs;
 mod mm;
+mod net;
 mod sync;
 mod syscall;
 mod task;
